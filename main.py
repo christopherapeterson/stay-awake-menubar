@@ -5,11 +5,29 @@ your real dictation tool; the point of this file is to show how ``stay_awake``
 plugs in alongside it without touching the dictation code.
 """
 
+import fcntl
 import os
+import tempfile
 
 import rumps
 
 from stay_awake import StayAwake
+
+# Single-instance lock: a second launch (e.g. double-clicking the app again)
+# should not add a duplicate menu bar cup. We hold an exclusive flock for the
+# life of the process; if it's already held, another copy is running.
+_LOCK_PATH = os.path.join(tempfile.gettempdir(), "stay-awake-menubar.lock")
+_lock_fd = None  # kept open for the process lifetime to retain the lock
+
+
+def _acquire_single_instance() -> bool:
+    global _lock_fd
+    _lock_fd = open(_LOCK_PATH, "w")
+    try:
+        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
 
 # Groovy menu bar icons (template images). Regenerate with scripts/make_icons.py.
 RES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Resources")
@@ -52,6 +70,10 @@ class MenuBarApp(rumps.App):
 
 def main_entry():
     """Console-script entry point (see ``[project.scripts]`` in pyproject.toml)."""
+    if not _acquire_single_instance():
+        # Already running; quietly bow out so we don't stack menu bar icons.
+        print("Stay Awake is already running.")
+        return
     MenuBarApp().run()
 
 
