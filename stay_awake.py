@@ -84,10 +84,25 @@ class StayAwake:
         restored.
     """
 
-    def __init__(self, app: rumps.App, active_title: str = ACTIVE_TITLE):
+    def __init__(
+        self,
+        app: rumps.App,
+        active_title: str = ACTIVE_TITLE,
+        idle_icon: str | None = None,
+        active_icon: str | None = None,
+    ):
         self._app = app
         self._active_title = active_title
         self._idle_title = app.title  # remembered so we can revert on stop
+        # Optional menu bar icons. When supplied, the icon (not the title text)
+        # is swapped between states. Rendered as template images so the menu bar
+        # tints them for light/dark mode.
+        self._idle_icon = idle_icon
+        self._active_icon = active_icon
+        if idle_icon or active_icon:
+            app.template = True
+            if idle_icon:
+                app.icon = idle_icon  # show the resting icon on launch
         self._proc: subprocess.Popen | None = None
         self._active_seconds: int | None = None  # None => indefinite
 
@@ -188,7 +203,10 @@ class StayAwake:
     # -- UI -----------------------------------------------------------------
 
     def _apply_active_ui(self):
-        self._app.title = self._active_title
+        if self._active_icon:
+            self._app.icon = self._active_icon  # groovy steaming cup
+        else:
+            self._app.title = self._active_title
         self._toggle.state = 1  # checkmark on the toggle
         self._toggle.title = "Stay Awake (on)"
         for label, item in self._duration_items.items():
@@ -197,7 +215,10 @@ class StayAwake:
             item.state = 1 if seconds == self._active_seconds else 0
 
     def _apply_idle_ui(self):
-        self._app.title = self._idle_title
+        if self._idle_icon:
+            self._app.icon = self._idle_icon  # resting cup, no steam
+        else:
+            self._app.title = self._idle_title
         self._toggle.state = 0
         self._toggle.title = "Stay Awake"
         for item in self._duration_items.values():
