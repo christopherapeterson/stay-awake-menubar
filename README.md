@@ -36,11 +36,16 @@ python3 -m venv .venv
 ./.venv/bin/python main.py
 ```
 
-A `🎤` appears in the menu bar. Click it for:
+A coffee cup appears in the menu bar. Click it for:
 
+- **Status line** — the first item shows the current state at a glance:
+  `○ Off`, `● On — until turned off`, or `● On — 14:59 left` with a live
+  countdown. Click it to open a small **status page** describing what your Mac
+  will do.
 - **Start Dictation** — stand-in for the real dictation tool.
-- **Stay Awake** — toggle: keeps the Mac awake indefinitely. The title flips to
-  `☕` and the item gets a checkmark while active. Click again to turn off.
+- **Stay Awake** — toggle: keeps the Mac awake indefinitely. The menu bar cup
+  starts steaming and the item gets a checkmark while active (its label flips to
+  **Turn Off**). Click again to turn off.
 - **Stay awake for...** — submenu of presets: **15 minutes**, **1 hour**,
   **4 hours**, **Until turned off**. Timed sessions auto-revert when they expire.
 

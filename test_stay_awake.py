@@ -36,12 +36,16 @@ def main():
     app = StubApp()
     sa = StayAwake(app)
 
+    assert_(sa._status.title == "○ Off", "status line starts Off")
+
     # --- indefinite toggle on ---
     before = running_caffeinate_pids()
     sa._on_toggle(None)
     time.sleep(0.5)
     assert_(sa.active, "indefinite toggle reports active")
     assert_(app.title == "☕", "menu bar title switched to active glyph")
+    assert_(sa._status.title == "● On — until turned off",
+            "status line shows On (indefinite)")
     assert_(sa._toggle.state == 1, "toggle shows checkmark")
     new = running_caffeinate_pids() - before
     assert_(len(new) >= 1, "a caffeinate process is running")
@@ -54,12 +58,19 @@ def main():
     time.sleep(0.5)
     assert_(not sa.active, "toggle off reports inactive")
     assert_(app.title == "🎤", "menu bar title reverted")
+    assert_(sa._status.title == "○ Off", "status line back to Off")
     assert_(sa._toggle.state == 0, "toggle checkmark cleared")
 
     # --- timed session via preset, -t present, auto-revert on expiry ---
-    sa._start(2)  # 2 second timed session
+    sa._start(90)  # 90 second timed session for a clean countdown check
     time.sleep(0.5)
     assert_(sa.active, "timed session active")
+    sa._poll(None)  # refresh the countdown text
+    assert_(sa._status.title.startswith("● On —") and "left" in sa._status.title,
+            "status line shows a countdown for timed session")
+    sa._stop()
+    sa._start(2)  # short timed session to test auto-expiry below
+    time.sleep(0.5)
     cmd = caffeinate_cmd(sa._proc.pid)
     assert_("-t" in cmd and " 2" in (" " + cmd), "timed session passes -t 2")
     assert_("-w" in cmd, "timed session also has -w orphan guard")
@@ -70,6 +81,12 @@ def main():
     sa._poll(None)  # simulate the main-thread timer tick
     assert_(not sa.active, "session auto-reverted after expiry")
     assert_(app.title == "🎤", "title reverted after timed expiry")
+    assert_(sa._status.title == "○ Off", "status line Off after expiry")
+
+    # --- remaining-time formatting ---
+    assert_(sa._fmt_remaining(899) == "14:59", "formats mm:ss")
+    assert_(sa._fmt_remaining(3849) == "1:04:09", "formats h:mm:ss")
+    assert_(sa._fmt_remaining(-5) == "0:00", "clamps negative to 0:00")
 
     # --- switching duration replaces (never stacks) the process ---
     sa._start(None)

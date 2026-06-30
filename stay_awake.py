@@ -47,6 +47,7 @@ import atexit
 import os
 import signal
 import subprocess
+import time
 import weakref
 
 import rumps
@@ -105,6 +106,10 @@ class StayAwake:
                 app.icon = idle_icon  # show the resting icon on launch
         self._proc: subprocess.Popen | None = None
         self._active_seconds: int | None = None  # None => indefinite
+        self._deadline: float | None = None  # monotonic time a timed session ends
+
+        # Status line shown at the top of the menu. Clickable -> opens the page.
+        self._status = rumps.MenuItem("○ Off", callback=self._show_status_page)
 
         # Top-level toggle: click to keep awake indefinitely / turn off.
         self._toggle = rumps.MenuItem("Stay Awake", callback=self._on_toggle)
@@ -123,6 +128,7 @@ class StayAwake:
         # Polls caffeinate's liveness on the main thread; only runs while active.
         self._timer = rumps.Timer(self._poll, 1)
 
+        self._apply_idle_ui()  # initialise the status line to "Off"
         _INSTANCES.add(self)
 
     # -- Public API ---------------------------------------------------------
@@ -132,9 +138,10 @@ class StayAwake:
         """A list suitable for splicing into the host app's ``self.menu``.
 
         Splice with ``*stay_awake.menu`` or just reference ``stay_awake.menu``
-        as a nested iterable; rumps accepts either.
+        as a nested iterable; rumps accepts either. The first item is a live
+        status line (● On / ○ Off); it is also clickable to open the status page.
         """
-        return [self._toggle, self._duration_menu]
+        return [self._status, self._toggle, self._duration_menu]
 
     @property
     def active(self) -> bool:
@@ -166,6 +173,7 @@ class StayAwake:
 
         self._proc = subprocess.Popen(cmd)
         self._active_seconds = seconds
+        self._deadline = (time.monotonic() + seconds) if seconds else None
         self._apply_active_ui()
         self._timer.start()
 
@@ -173,6 +181,7 @@ class StayAwake:
         """End the current session and revert to the idle state."""
         self._kill_proc()
         self._active_seconds = None
+        self._deadline = None
         if self._timer.is_alive():
             self._timer.stop()
         self._apply_idle_ui()
@@ -195,10 +204,46 @@ class StayAwake:
             pass
 
     def _poll(self, _timer):
-        """Main-thread tick: detect a timed session that expired on its own."""
+        """Main-thread tick: detect expiry and keep the status countdown fresh."""
         if self._proc is not None and self._proc.poll() is not None:
             # caffeinate exited (its -t timeout elapsed) -> auto-revert.
             self._stop()
+        else:
+            self._status.title = self._status_text()  # tick the countdown
+
+    # -- Status helpers -----------------------------------------------------
+
+    @staticmethod
+    def _fmt_remaining(seconds: float) -> str:
+        """Format a remaining duration like '1:04:09' or '14:59'."""
+        seconds = max(0, int(round(seconds)))
+        h, rem = divmod(seconds, 3600)
+        m, s = divmod(rem, 60)
+        if h:
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+
+    def _status_text(self) -> str:
+        """The one-line ● On / ○ Off status shown in the menu."""
+        if not self.active:
+            return "○ Off"
+        if self._deadline is None:
+            return "● On — until turned off"
+        return f"● On — {self._fmt_remaining(self._deadline - time.monotonic())} left"
+
+    def _show_status_page(self, _sender):
+        """Open a small status 'page' (panel) describing the current state."""
+        if self.active:
+            if self._deadline is None:
+                detail = "Your Mac will stay awake until you turn it off."
+            else:
+                left = self._fmt_remaining(self._deadline - time.monotonic())
+                detail = f"Your Mac will stay awake for {left} more, then sleep normally."
+            title, message = "Stay Awake: ON", detail
+        else:
+            title = "Stay Awake: OFF"
+            message = "Your Mac can sleep normally. Toggle Stay Awake to keep it up."
+        rumps.alert(title=title, message=message, ok="Done")
 
     # -- UI -----------------------------------------------------------------
 
@@ -207,8 +252,9 @@ class StayAwake:
             self._app.icon = self._active_icon  # groovy steaming cup
         else:
             self._app.title = self._active_title
+        self._status.title = self._status_text()
         self._toggle.state = 1  # checkmark on the toggle
-        self._toggle.title = "Stay Awake (on)"
+        self._toggle.title = "Turn Off"
         for label, item in self._duration_items.items():
             # Tick the preset that matches the running session.
             seconds = dict(PRESETS)[label]
@@ -219,6 +265,7 @@ class StayAwake:
             self._app.icon = self._idle_icon  # resting cup, no steam
         else:
             self._app.title = self._idle_title
+        self._status.title = self._status_text()
         self._toggle.state = 0
         self._toggle.title = "Stay Awake"
         for item in self._duration_items.values():
