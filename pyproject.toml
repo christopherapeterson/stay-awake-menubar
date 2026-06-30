@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stay-awake-menubar"
+version = "0.1.0"
+description = "A Caffeine/Amphetamine-style 'Stay Awake' menu bar app for macOS, built on rumps."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Christopher Peterson" }]
+keywords = ["macos", "menubar", "rumps", "caffeinate", "caffeine", "amphetamine", "sleep"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: MacOS X",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Topic :: Utilities",
+]
+dependencies = ["rumps>=0.4.0"]
+
+[project.urls]
+Homepage = "https://github.com/christopherapeterson/stay-awake-menubar"
+Repository = "https://github.com/christopherapeterson/stay-awake-menubar"
+Issues = "https://github.com/christopherapeterson/stay-awake-menubar/issues"
+
+[project.scripts]
+stay-awake = "main:main_entry"
+
+[tool.setuptools]
+py-modules = ["stay_awake", "main"]
