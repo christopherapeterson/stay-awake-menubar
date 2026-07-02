@@ -1,4 +1,6 @@
-# ☕ Stay Awake (menu bar)
+<p align="center">
+  <img src="docs/banner.png" alt="Stay Awake — a groovy caffeinate companion for your menu bar" width="820">
+</p>
 
 [![CI](https://github.com/christopherapeterson/stay-awake-menubar/actions/workflows/ci.yml/badge.svg)](https://github.com/christopherapeterson/stay-awake-menubar/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
@@ -29,9 +31,19 @@ in the menu, or running `bin/stayawake show`) pops a floating control panel:
 </p>
 
 One big **Turn On / Turn Off** button, preset pills for **15 min / 1 hour /
-4 hours** (the active one highlights), and a live countdown while a timed
-session runs. Built with AppKit directly (no web view), styled to match the
-app icon.
+4 hours** (the running one fills caramel), and a live countdown while a timed
+session runs. Built with AppKit directly (no web view).
+
+### Brand palette
+
+Everything — app icon, control panel, and this README's banner — shares one
+palette: warm **beige** (`#F2EADB → #E2D5BE`) as the canvas, **mocha**
+(`#6F4E37`) for the cup, primary button and body text, **espresso** (`#4B3621`)
+for headline type, and **caramel** (`#A47551`) as the highlight (active states,
+the middle steam swirl, accent rules). The menu bar icons stay monochrome
+template images by design, so macOS tints them to match any menu bar.
+Regenerate any asset with `scripts/make_icons.py`, `scripts/make_app_icon.py`,
+or `scripts/make_banner.py`.
 
 ## Files
 

@@ -1,9 +1,11 @@
 """Generate AppIcon.icns for the Stay Awake .app bundle.
 
 Unlike the menu bar template icons (black + alpha), the *app* icon is the full
-colored Finder/Spotlight icon: a groovy warm-orange rounded square with a cream
-coffee cup and steam. Renders a 1024px master, builds the standard .iconset, and
-runs iconutil to produce Resources/AppIcon.icns.
+colored Finder/Spotlight icon. Brand palette: a soft beige card with the cup,
+saucer and handle in mocha, the middle steam swirl picked out in caramel, and a
+thin caramel keyline ring for a finished, screen-printed feel. Renders a 1024px
+master, builds the standard .iconset, and runs iconutil to produce
+Resources/AppIcon.icns.
 
 Run:  ../.venv/bin/python make_app_icon.py
 """
@@ -17,10 +19,13 @@ from PIL import Image, ImageDraw
 HERE = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.join(HERE, "..", "Resources")
 
-BG_TOP = (247, 178, 88)     # warm 70s orange
-BG_BOT = (236, 130, 74)     # deeper amber
-CUP = (255, 244, 224)       # cream
-STEAM = (255, 244, 224)
+# Brand palette (shared with control_panel.py and scripts/make_banner.py).
+BG_TOP = (242, 234, 219)    # warm beige, light
+BG_BOT = (226, 213, 190)    # warm beige, deep
+CUP = (111, 78, 55)         # mocha
+STEAM = (111, 78, 55)       # mocha (outer swirls)
+STEAM_HI = (164, 117, 81)   # caramel highlight (middle swirl)
+KEYLINE = (164, 117, 81)    # caramel ring
 
 
 def _vertical_gradient(size, top, bot):
@@ -62,6 +67,14 @@ def build_master(S=1024):
     icon.putalpha(_rounded_mask(S, int(S * 0.22)))  # squircle-ish corners
     d = ImageDraw.Draw(icon)
 
+    # Thin caramel keyline ring, inset from the edge. ImageDraw overwrites
+    # rather than alpha-blends, so use a solid caramel-on-beige mix.
+    ring = tuple(int(0.45 * k + 0.55 * b) for k, b in zip(KEYLINE, (234, 223, 204)))
+    inset = int(S * 0.045)
+    d.rounded_rectangle([inset, inset, S - inset, S - inset],
+                        radius=int(S * 0.18), outline=ring + (255,),
+                        width=int(S * 0.008))
+
     # Cup body (centered, lower-middle), cream.
     top, bot = 0.50 * S, 0.74 * S
     lt, rt = 0.34 * S, 0.62 * S
@@ -77,10 +90,10 @@ def build_master(S=1024):
     d.arc([0.55 * S, 0.55 * S, 0.74 * S, 0.72 * S], start=-78, end=118,
           fill=CUP, width=int(0.05 * S))
 
-    # Three groovy steam swirls.
+    # Three groovy steam swirls — middle one in caramel as the brand highlight.
     w = int(0.05 * S)
     _wave(d, 0.42 * S, 0.47 * S, 0.20 * S, 0.035 * S, 0.26 * S, w, 0.0, STEAM)
-    _wave(d, 0.50 * S, 0.47 * S, 0.16 * S, 0.040 * S, 0.30 * S, w, math.pi, STEAM)
+    _wave(d, 0.50 * S, 0.47 * S, 0.16 * S, 0.040 * S, 0.30 * S, w, math.pi, STEAM_HI)
     _wave(d, 0.58 * S, 0.47 * S, 0.22 * S, 0.035 * S, 0.26 * S, w, math.pi / 2, STEAM)
     return icon
 
