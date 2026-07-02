@@ -12,6 +12,7 @@ import tempfile
 
 import rumps
 
+from control_panel import ControlPanel, install_reopen_handler
 from stay_awake import StayAwake
 
 # Single-instance lock: a second launch (e.g. double-clicking the app again)
@@ -26,7 +27,7 @@ _SUPPORT_DIR = os.path.expanduser("~/Library/Application Support/StayAwake")
 CONTROL_FILE = os.path.join(_SUPPORT_DIR, "command")
 STATUS_FILE = os.path.join(_SUPPORT_DIR, "status")
 
-_COMMANDS = ("toggle", "on", "off", "15m", "1h", "4h", "status")
+_COMMANDS = ("toggle", "on", "off", "15m", "1h", "4h", "status", "show")
 
 
 def _acquire_single_instance() -> bool:
@@ -57,6 +58,18 @@ class MenuBarApp(rumps.App):
             control_file=CONTROL_FILE, status_file=STATUS_FILE,
         )
 
+        # The pretty control panel. Opens on launch, on re-opening the app, on
+        # clicking the menu's status line, and via `stayawake show`.
+        self.panel = ControlPanel.alloc().initWithStayAwake_iconPath_(
+            self.stay_awake, os.path.join(RES, "app-icon.png")
+        )
+        self.stay_awake.on_show = self.panel.show
+        install_reopen_handler(self.panel.show)
+
+        # Pop the panel once the run loop is going (can't order windows before).
+        self._welcome = rumps.Timer(self._show_panel_on_launch, 0.4)
+        self._welcome.start()
+
         self.menu = [
             rumps.MenuItem("Start Dictation", callback=self.start_dictation),
             None,                       # separator
@@ -64,6 +77,10 @@ class MenuBarApp(rumps.App):
             None,                       # separator
             rumps.MenuItem("Quit", callback=self.quit),
         ]
+
+    def _show_panel_on_launch(self, _timer):
+        self._welcome.stop()
+        self.panel.show()
 
     # -- Dictation (stand-in for the existing tool) -------------------------
 
@@ -111,8 +128,11 @@ def main_entry():
         sys.exit(2)
 
     if not _acquire_single_instance():
-        # Already running; quietly bow out so we don't stack menu bar icons.
-        print("Stay Awake is already running.")
+        # Already running: don't stack a second cup — pop the existing
+        # instance's control panel instead, so "opening the app" always
+        # gives the user something visible.
+        _send_command("show")
+        print("Stay Awake is already running — opened its panel.")
         return
     os.makedirs(_SUPPORT_DIR, exist_ok=True)  # so status is readable immediately
     MenuBarApp().run()

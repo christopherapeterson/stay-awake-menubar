@@ -147,6 +147,12 @@ def control_channel_checks():
     send("bogus")
     assert_(sa.active and sa._active_seconds == 900, "unknown command ignored")
 
+    shown = []
+    sa.on_show = lambda: shown.append(1)
+    send("show")
+    assert_(shown == [1], "control 'show' fires the panel callback")
+    assert_(sa.active and sa._active_seconds == 900, "'show' leaves session untouched")
+
     # command file is consumed (not re-run every tick)
     sa._control_tick(None)
     assert_(open(ctrl).read() == "", "command file consumed after execution")

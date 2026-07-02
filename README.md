@@ -18,6 +18,21 @@ A groovy little coffee cup sits in your menu bar. It's empty when your Mac is fr
 to sleep, and pours out wavy 70s steam while Stay Awake is keeping it up. The icons
 are template images, so they tint themselves for light and dark menu bars.
 
+## The control panel
+
+Opening the app (or re-opening it while it's running, or clicking the status line
+in the menu, or running `bin/stayawake show`) pops a floating control panel:
+
+<p align="center">
+  <img src="docs/panel-off.png" alt="Stay Awake control panel, off state" width="300">
+  <img src="docs/panel-on.png" alt="Stay Awake control panel, on state with countdown" width="300">
+</p>
+
+One big **Turn On / Turn Off** button, preset pills for **15 min / 1 hour /
+4 hours** (the active one highlights), and a live countdown while a timed
+session runs. Built with AppKit directly (no web view), styled to match the
+app icon.
+
 ## Files
 
 - **`stay_awake.py`** — the self-contained component. Drop this into any existing

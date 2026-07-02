@@ -14,10 +14,10 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="$DIR/.venv/bin/python"
 
-# `stayawake` with no argument: make sure the app is running (launch if not).
+# `stayawake` with no argument: launch the app, or pop the panel if running.
 if [ "$#" -eq 0 ]; then
     if pgrep -f "$DIR/main.py" >/dev/null 2>&1; then
-        echo "Stay Awake is already running."
+        exec "$PY" "$DIR/main.py" show
     else
         open -a "/Applications/StayAwake.app" 2>/dev/null || exec "$PY" "$DIR/main.py"
     fi

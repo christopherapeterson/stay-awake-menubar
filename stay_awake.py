@@ -93,9 +93,14 @@ class StayAwake:
         active_icon: str | None = None,
         control_file: str | None = None,
         status_file: str | None = None,
+        on_show=None,
     ):
         self._app = app
         self._active_title = active_title
+        # Optional callable that opens the host's control panel/window. Used by
+        # the "show" command and the clickable status line; falls back to a
+        # plain alert when absent. Host apps may also assign it after init.
+        self.on_show = on_show
         self._idle_title = app.title  # remembered so we can revert on stop
         # Optional menu bar icons. When supplied, the icon (not the title text)
         # is swapped between states. Rendered as template images so the menu bar
@@ -276,7 +281,10 @@ class StayAwake:
             self._write_status_file()
 
     def _run_command(self, cmd: str):
-        if cmd == "toggle":
+        if cmd == "show":
+            if self.on_show:
+                self.on_show()
+        elif cmd == "toggle":
             self._on_toggle(None)
         elif cmd in self._COMMANDS:
             _action, seconds = self._COMMANDS[cmd]
@@ -294,7 +302,10 @@ class StayAwake:
             pass
 
     def _show_status_page(self, _sender):
-        """Open a small status 'page' (panel) describing the current state."""
+        """Open the host's control panel, or a plain status alert without one."""
+        if self.on_show:
+            self.on_show()
+            return
         if self.active:
             if self._deadline is None:
                 detail = "Your Mac will stay awake until you turn it off."
