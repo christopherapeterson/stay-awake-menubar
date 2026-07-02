@@ -1,0 +1,27 @@
+#!/bin/bash
+# Toggle / control Stay Awake without touching the menu bar.
+#
+#   stayawake            # (no arg) launches the app if it isn't running
+#   stayawake toggle     # flip on/off  <- bind this to a hotkey
+#   stayawake on         # keep awake until turned off
+#   stayawake off        # let the Mac sleep
+#   stayawake 15m|1h|4h  # keep awake for a preset duration
+#   stayawake status     # print current state
+#
+# Bind a hotkey with Raycast, Automator "Quick Action", or the Shortcuts app
+# pointing at:  /Users/chrispeterson/Code/stay-awake-menubar/bin/stayawake toggle
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$DIR/.venv/bin/python"
+
+# `stayawake` with no argument: make sure the app is running (launch if not).
+if [ "$#" -eq 0 ]; then
+    if pgrep -f "$DIR/main.py" >/dev/null 2>&1; then
+        echo "Stay Awake is already running."
+    else
+        open -a "/Applications/StayAwake.app" 2>/dev/null || exec "$PY" "$DIR/main.py"
+    fi
+    exit 0
+fi
+
+exec "$PY" "$DIR/main.py" "$@"

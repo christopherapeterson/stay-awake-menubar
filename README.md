@@ -49,6 +49,35 @@ A coffee cup appears in the menu bar. Click it for:
 - **Stay awake for...** — submenu of presets: **15 minutes**, **1 hour**,
   **4 hours**, **Until turned off**. Timed sessions auto-revert when they expire.
 
+## Toggle without the menu bar (hotkey / CLI)
+
+If your menu bar is full (or you just prefer a shortcut), control the running app
+from the command line — no clicking required:
+
+```bash
+bin/stayawake toggle     # flip on/off
+bin/stayawake on         # keep awake until turned off
+bin/stayawake off        # let the Mac sleep
+bin/stayawake 15m|1h|4h  # keep awake for a preset duration
+bin/stayawake status     # print current state (e.g. "● On — 59:59 left")
+```
+
+**Bind it to a keyboard shortcut** with whatever you already use:
+
+- **Raycast:** Create Script Command / or add a "Run Shell Script" and give it a hotkey:
+  `~/Code/stay-awake-menubar/bin/stayawake toggle`
+- **Shortcuts.app:** New Shortcut → *Run Shell Script* →
+  `~/Code/stay-awake-menubar/bin/stayawake toggle` → assign a keyboard shortcut.
+- **Automator:** New *Quick Action* → *Run Shell Script* with the same line →
+  save, then System Settings ▸ Keyboard ▸ Shortcuts ▸ Services → assign a key.
+
+Under the hood the running app watches a small command file in
+`~/Library/Application Support/StayAwake/` and mirrors its state to a `status`
+file, so the CLI works even when the menu bar icon is unreachable.
+
+Tip: you can also **⌘-drag** menu bar icons to rearrange them, or use a menu bar
+manager like [Ice](https://github.com/jordanbaird/Ice) to reveal hidden icons.
+
 ## Integrating into your own app
 
 ```python

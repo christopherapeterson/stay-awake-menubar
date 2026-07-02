@@ -103,7 +103,55 @@ def main():
     assert_(not sa.active, "shutdown stopped the session")
     assert_(not _pid_alive(p2), "shutdown killed caffeinate")
 
+    # --- external control channel (CLI / hotkey without the menu bar) ---
+    control_channel_checks()
+
     print("\nALL CHECKS PASSED")
+
+
+def control_channel_checks():
+    import tempfile
+
+    d = tempfile.mkdtemp(prefix="stayawake-test-")
+    ctrl = os.path.join(d, "command")
+    stat = os.path.join(d, "status")
+    app = StubApp()
+    sa = StayAwake(app, control_file=ctrl, status_file=stat)
+
+    def send(cmd):
+        with open(ctrl, "w") as fh:
+            fh.write(cmd)
+        sa._control_tick(None)  # simulate the always-on timer firing
+        time.sleep(0.3)
+
+    def status():
+        with open(stat) as fh:
+            return fh.read().strip()
+
+    send("on")
+    assert_(sa.active, "control 'on' turned it on")
+    assert_(status().startswith("● On"), "status file mirrors On")
+
+    send("off")
+    assert_(not sa.active, "control 'off' turned it off")
+    assert_(status() == "○ Off", "status file mirrors Off")
+
+    send("toggle")
+    assert_(sa.active, "control 'toggle' turned it on")
+    send("toggle")
+    assert_(not sa.active, "control 'toggle' turned it off again")
+
+    send("15m")
+    assert_(sa.active and sa._active_seconds == 900, "control '15m' set a 15m timer")
+
+    send("bogus")
+    assert_(sa.active and sa._active_seconds == 900, "unknown command ignored")
+
+    # command file is consumed (not re-run every tick)
+    sa._control_tick(None)
+    assert_(open(ctrl).read() == "", "command file consumed after execution")
+
+    sa.shutdown()
 
 
 def _pid_alive(pid):

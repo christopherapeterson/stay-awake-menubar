@@ -7,6 +7,7 @@ plugs in alongside it without touching the dictation code.
 
 import fcntl
 import os
+import sys
 import tempfile
 
 import rumps
@@ -18,6 +19,14 @@ from stay_awake import StayAwake
 # life of the process; if it's already held, another copy is running.
 _LOCK_PATH = os.path.join(tempfile.gettempdir(), "stay-awake-menubar.lock")
 _lock_fd = None  # kept open for the process lifetime to retain the lock
+
+# Control channel so a hotkey/CLI can toggle the running app without the menu
+# bar (see `stayawake` in bin/). Lives in Application Support so it survives.
+_SUPPORT_DIR = os.path.expanduser("~/Library/Application Support/StayAwake")
+CONTROL_FILE = os.path.join(_SUPPORT_DIR, "command")
+STATUS_FILE = os.path.join(_SUPPORT_DIR, "status")
+
+_COMMANDS = ("toggle", "on", "off", "15m", "1h", "4h", "status")
 
 
 def _acquire_single_instance() -> bool:
@@ -44,7 +53,8 @@ class MenuBarApp(rumps.App):
         # manages its own caffeinate subprocess. We hand it the app plus the two
         # groovy icons to swap between resting and awake states.
         self.stay_awake = StayAwake(
-            self, idle_icon=IDLE_ICON, active_icon=ACTIVE_ICON
+            self, idle_icon=IDLE_ICON, active_icon=ACTIVE_ICON,
+            control_file=CONTROL_FILE, status_file=STATUS_FILE,
         )
 
         self.menu = [
@@ -68,12 +78,43 @@ class MenuBarApp(rumps.App):
         rumps.quit_application()
 
 
+def _send_command(cmd: str) -> int:
+    """CLI path: hand a command to the running app (or report status) and exit.
+
+    Used by bin/stayawake so a hotkey can toggle without touching the menu bar.
+    """
+    os.makedirs(_SUPPORT_DIR, exist_ok=True)
+    if cmd == "status":
+        try:
+            with open(STATUS_FILE) as fh:
+                print(fh.read().strip() or "unknown")
+        except FileNotFoundError:
+            print("Stay Awake is not running.")
+        return 0
+    with open(CONTROL_FILE, "w") as fh:
+        fh.write(cmd)
+    print(f"sent: {cmd}")
+    return 0
+
+
 def main_entry():
-    """Console-script entry point (see ``[project.scripts]`` in pyproject.toml)."""
+    """Entry point. With no args, runs the app; with a command, drives it.
+
+    Commands: toggle | on | off | 15m | 1h | 4h | status
+    """
+    args = sys.argv[1:]
+    if args:
+        cmd = args[0].lower()
+        if cmd in _COMMANDS:
+            sys.exit(_send_command(cmd))
+        print(f"unknown command: {cmd}\nusage: stayawake [{' | '.join(_COMMANDS)}]")
+        sys.exit(2)
+
     if not _acquire_single_instance():
         # Already running; quietly bow out so we don't stack menu bar icons.
         print("Stay Awake is already running.")
         return
+    os.makedirs(_SUPPORT_DIR, exist_ok=True)  # so status is readable immediately
     MenuBarApp().run()
 
 

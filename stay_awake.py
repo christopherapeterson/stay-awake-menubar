@@ -91,6 +91,8 @@ class StayAwake:
         active_title: str = ACTIVE_TITLE,
         idle_icon: str | None = None,
         active_icon: str | None = None,
+        control_file: str | None = None,
+        status_file: str | None = None,
     ):
         self._app = app
         self._active_title = active_title
@@ -127,6 +129,17 @@ class StayAwake:
 
         # Polls caffeinate's liveness on the main thread; only runs while active.
         self._timer = rumps.Timer(self._poll, 1)
+
+        # External control: a running app can be toggled without the menu bar
+        # (handy when the menu bar is full). A CLI writes a command word into
+        # ``control_file``; an always-on timer reads and executes it. Current
+        # status is mirrored to ``status_file`` for `... status` to read back.
+        self._control_file = control_file
+        self._status_file = status_file
+        self._control_timer = None
+        if control_file:
+            self._control_timer = rumps.Timer(self._control_tick, 1)
+            self._control_timer.start()
 
         self._apply_idle_ui()  # initialise the status line to "Off"
         _INSTANCES.add(self)
@@ -231,6 +244,55 @@ class StayAwake:
             return "● On — until turned off"
         return f"● On — {self._fmt_remaining(self._deadline - time.monotonic())} left"
 
+    # -- External control (CLI / hotkey, no menu bar needed) ----------------
+
+    # Command words accepted in the control file. Durations mirror PRESETS.
+    _COMMANDS = {
+        "toggle": None,   # handled specially
+        "on": ("start", None),
+        "off": ("stop", None),
+        "15m": ("start", 15 * 60),
+        "1h": ("start", 60 * 60),
+        "4h": ("start", 4 * 60 * 60),
+    }
+
+    def _control_tick(self, _timer):
+        """Always-on tick: execute any queued command, keep status file fresh."""
+        cmd = None
+        try:
+            with open(self._control_file) as fh:
+                cmd = fh.read().strip().lower()
+            open(self._control_file, "w").close()  # consume it
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return
+        if cmd:
+            self._run_command(cmd)
+        else:
+            # No command; still refresh the countdown/status file periodically.
+            if self.active:
+                self._status.title = self._status_text()
+            self._write_status_file()
+
+    def _run_command(self, cmd: str):
+        if cmd == "toggle":
+            self._on_toggle(None)
+        elif cmd in self._COMMANDS:
+            _action, seconds = self._COMMANDS[cmd]
+            self._start(seconds) if _action == "start" else self._stop()
+        # unknown commands are ignored
+        self._write_status_file()
+
+    def _write_status_file(self):
+        if not self._status_file:
+            return
+        try:
+            with open(self._status_file, "w") as fh:
+                fh.write(self._status_text())
+        except OSError:
+            pass
+
     def _show_status_page(self, _sender):
         """Open a small status 'page' (panel) describing the current state."""
         if self.active:
@@ -253,6 +315,7 @@ class StayAwake:
         else:
             self._app.title = self._active_title
         self._status.title = self._status_text()
+        self._write_status_file()
         self._toggle.state = 1  # checkmark on the toggle
         self._toggle.title = "Turn Off"
         for label, item in self._duration_items.items():
@@ -266,6 +329,7 @@ class StayAwake:
         else:
             self._app.title = self._idle_title
         self._status.title = self._status_text()
+        self._write_status_file()
         self._toggle.state = 0
         self._toggle.title = "Stay Awake"
         for item in self._duration_items.values():
